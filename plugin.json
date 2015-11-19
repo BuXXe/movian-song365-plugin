@@ -1,0 +1,14 @@
+{
+  "type": "ecmascript",
+  "id": "song365.org",
+  "file": "song365.js",
+  "category": "music",
+  "showtimeVersion": "4.3.167",
+  "version": "0.1a",
+  "author": "BuXXe (@buxxe)",
+  "title": "song365.org",
+  "icon": "song365.png",
+  "synopsis": "Showtime plugin to listen to song365.org music",
+  "description":"<p>song365.org Showtime plugin allows the integration of song365.org music streams into Showtime.</p>",
+  "homepage":"google.de"
+}
