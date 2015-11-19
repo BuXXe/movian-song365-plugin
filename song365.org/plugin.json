@@ -8,7 +8,7 @@
   "author": "BuXXe (@buxxe)",
   "title": "song365.org",
   "icon": "song365.png",
-  "synopsis": "Showtime plugin to listen to song365.org music",
-  "description":"<p>song365.org Showtime plugin allows the integration of song365.org music streams into Showtime.</p>",
-  "homepage":"google.de"
+  "synopsis": "Movian plugin to listen to song365.org music",
+  "description":"<p>song365.org Movian plugin allows the integration of song365.org music streams into Movian.</p>",
+  "homepage":"https://github.com/BuXXe/movian-song365-plugin"
 }
