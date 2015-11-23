@@ -9,6 +9,6 @@
   "title": "song365.org",
   "icon": "song365.png",
   "synopsis": "Movian plugin to listen to song365.org music",
-  "description":"<p>song365.org Movian plugin allows the integration of song365.org music streams into Movian.</p>",
+  "description":"<p>song365.org Movian plugin allows the integration of song365.org music streams into Movian. If you encounter problems, leave a note at the github.</p>",
   "homepage":"https://github.com/BuXXe/movian-song365-plugin"
 }

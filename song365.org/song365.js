@@ -1,45 +1,64 @@
 /**
- * Showtime plugin to listen to song365.org streams 
+ * Movian plugin to listen to song365.org streams 
  *
  * Copyright (C) 2015 BuXXe
  *
- *     This file is part of song365.org Showtime plugin.
+ *     This file is part of song365.org Movian plugin.
  *
- *  song365.org Showtime plugin is free software: you can redistribute it and/or modify
+ *  song365.org Movian plugin is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
  *
- *  song365.org Showtime plugin is distributed in the hope that it will be useful,
+ *  song365.org Movian plugin is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with kinox.to Showtime plugin.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with song365.org Movian plugin.  If not, see <http://www.gnu.org/licenses/>.
  *
- *  Download from : NOT YET AVAILABLE
+ *  Download from : https://github.com/BuXXe/movian-song365-plugin
  *
  */
    var html = require('showtime/html');
 
 (function(plugin) {
 
-	// TODO: Workaround of the em tag problem
-	// TODO: titles / names with colons (:) in it result in resolver errors due to wrong regex matches for the pages
-	// TODO: Clean things up!
+	// TODO: when / if possible use html parser instead of regex for the <em> tag problem
+	// TODO: favorites : do not allow double entries -> right now: its the users responsibility
+	// TODO: playlists (with custom user names (fail-proof names only) 
+	// -> Problem: how to create a selection menu for existing playlists?
+	// -> Favorites should be enough for now
+
+	// TODO: Clean up ! 
+	
+	// INFO: Directory entries have no icon but video entries have options to "play until end of list" etc.
+	//  -> to avoid wrong behavior, all entries are directories except the ones linking to direct mp3s
+	//  -> this means: no logos / pics in search alburms / artists
 	
 	
-  var PLUGIN_PREFIX = "song365.org:";
-   
-  
+	// Create / Get the storage for playlists / favorites etc.
+	var store = plugin.createStore('personalStorage', true)
+	
+	// check / create stores for favorites / playlists
+	// Playlists: have a unique name and list of tracks
+	if (!store.playlists) {
+        store.playlists = "[]";
+    }
+	// Favorite Albums / Artists / Tracks  
+	if (!store.favorites) {
+        store.favorites = "{\"albums\":[],\"artists\":[],\"tracks\":[]}";
+    }
+
+	var PLUGIN_PREFIX = "song365.org:";
   
   // Search param indicates the search criteria: Artist, Album, Track
-  plugin.addURI(PLUGIN_PREFIX+"Search:(.*)",function(page,SearchParam) {
+  plugin.addURI(PLUGIN_PREFIX+"Search:(.*)", function(page, SearchParam) {
 	  page.type="directory";
-	  page.metadata.title = "Search for "+SearchParam;
+	  page.metadata.title = "Search for " + SearchParam;
 	    
-	  var res = showtime.textDialog("What "+SearchParam+ " do you want to search for?", true,true);
+	  var res = showtime.textDialog("What "+ SearchParam + " do you want to search for?", true,true);
 	  
 	  // check for user abort
 	  if(res.rejected)
@@ -48,115 +67,145 @@
 	  {
 		  var SearchQueryResponse = showtime.httpGet("https://www.song365.org/search/"+SearchParam+"?keyword="+res.input);
 		  
-		  // Parse Search Result
-		  // Track -> Direct Play
-		  // Artist -> Artist Profile Page
-		  // Album -> Album Tracks
+		  // Parse Search Results: Track -> Direct Play, Artist -> Artist Profile Page, Album -> Album Tracks
 		  
-		  // TODO: Outsource to common function
+		  // Problem: The search results are marked in <em> tags. The parsed dom structure makes it problematic
+		  // to reconstruct the complete textContent. (the order of textContent and <em> tags children cant be reconstructed so far)
+		  // Use one of these workarounds until a solution for this <em> tag problem is found.
+		  // Workarounds:
+		  // 1. Take other attributes like the img alt attribute etc to get the information (artist, title, album names)
+		  // 	-> Is not really the best way to keep it easy / could result in wrong entries.
+		  //	-> DUE TO SHORTER CODE, THIS SOLUTION IS TAKEN FOR ARTIST / ALBUM SEARCH
+		  // 2. use Regex on the pure response object without parsing stuff
+		  // 	-> could be performance problem 
+		  //	-> THIS IS THE PRESENT SOLUTION FOR TRACK SEARCH
+
+		  // this value indicates if there are search results or not.
+		  var noEntry = true;
 		  
-		  // Display all Search Results for Tracks
-		  // TODO: need to use description for artist name and album
+		  // Display all Search results for tracks
 		  if(SearchParam=="track")
 		  {
-				var dom = html.parse(SearchQueryResponse.toString());
-				var songlist =  dom.root.getElementByClassName('search-songs')[0];
-				var entries = songlist.getElementByClassName("item");
+				// get the names including <em> </em> tags
+				// the song names and links can be taken from the same entry. we just need to take care about handling the array structure
+				// link1, songname1, link2, songname2 ...
+				var songreg = /<div class="song-name"><a href="(.*)" title=".*">(.*)<\/a><\/div>/gi;
+				var artreg = /<div class="artist-name"><a href=".*" title=".*">(.*)<\/a><\/div>/gi;
+				var albreg = /<div class="album-name"><a href=".*" title=".*">(.*)<\/a><\/div>/gi;
 				
-				
-				
-				// titles may be problematic due to <em> tags in the titles (due to search)
-				// workaround: use the title of the anchor
-				// TODO improve this workaround
-				// Idea: use regex global replace instead of simple replace to replace all em tags in the response string
-				// http://stackoverflow.com/questions/1967119/why-does-javascript-replace-only-first-instance-when-using-replace
-				// date.replace(new RegExp("/", "g"), '')
-				// or
-				// date.replace(/\//g, '')
-				
-				for(var k=0; k< entries.length; k++)
-				{
-					// give artist and album name
-					var artistname = entries[k].getElementByClassName("artist-name")[0].getElementByTagName("a")[0].attributes.getNamedItem("title").value; 
-					var albumname = entries[k].getElementByClassName("album-name")[0].getElementByTagName("a")[0].attributes.getNamedItem("title").value;
-						
-					var description = "Artist: "+artistname+"\n"+"Album: "+albumname;
+				var pos = 0;
+				// needed for the params in the Optactions
+				var tracks=[];
+				var songnamesandlinks;
+				while (songnamesandlinks = songreg.exec(SearchQueryResponse.toString())) {
 					
-					// the title contains artist + track name
-					// this can be hard to read so we need to remove the artist name
-					// trying this by using artistname and replace first occurance in title
-					var title= entries[k].getElementByClassName("song-name")[0].getElementByTagName("a")[0].attributes.getNamedItem("title").value;
-					title = title.replace(artistname+" ","");
-					// get track play link
-					var streamLink  = entries[k].getElementByClassName("play")[0].attributes.getNamedItem("href").value;
-					
-					page.appendItem(PLUGIN_PREFIX + 'DecodeSongAndPlay:'+streamLink, 'video', {
-							  title: title,
-							  description: description,
+					noEntry=false;
+					var artistname = artreg.exec(SearchQueryResponse.toString())[1].replace(/(<\/em>|<em>)/g,"");
+					var albumname = albreg.exec(SearchQueryResponse.toString())[1].replace(/(<\/em>|<em>)/g,"");
 
+					var songname = songnamesandlinks[2].replace(/(<\/em>|<em>)/g,"");		
+					var description = "Artist: "+artistname+"\n"+"Album: "+albumname+"\n"+"Track: "+songname;
+					
+					var item = page.appendItem(PLUGIN_PREFIX + 'DecodeSongAndPlay:'+songnamesandlinks[1], 'video', {
+							  title: songname,
+							  description: description,
 							});
+					
+					tracks[pos]= {title: songname, description: description, link: songnamesandlinks[1] }
+					item.addOptAction("Add track '" + songname + "' to favorites", pos);
+				    item.onEvent(pos, function(item) 
+				    		{
+				    			var obj = showtime.JSONDecode(store.favorites);
+				    			obj.tracks.push(tracks[item]);
+				    			store.favorites = showtime.JSONEncode(obj);
+				    		});
+				    pos++;
 				}
 		  }
 		  else if(SearchParam=="artist")
 		  {  
 			  	var dom = html.parse(SearchQueryResponse.toString());
-				var artistlist =  dom.root.getElementByClassName('search-artist')[0];
-				var entries =  artistlist.getElementByClassName('item');
+				var entries =  dom.root.getElementByClassName('search-artist')[0].getElementByClassName('item');
 			  	
 			    for(var k=0; k< entries.length; k++)
 			    {
-			    	// the artist name gets <em> tags where the search fits. 
-			    	// to get the name we use the alt attribute from the image
-			    	// TODO: improve this workaround 
-			    	
+			    	noEntry=false;
 			    	var logo =  entries[k].getElementByTagName("img")[0].attributes.getNamedItem("src").value;
-			    	
 			    	var title =  entries[k].getElementByTagName("img")[0].attributes.getNamedItem("alt").value;
-			    	
-			    	// get artist site link
 			    	var streamLink  = entries[k].getElementByTagName("a")[0].attributes.getNamedItem("href").value;
 		    	
-			    	page.appendItem(PLUGIN_PREFIX + 'ArtistProfile:'+title+':'+ streamLink, 'video', {
-						  title: title,
-						  icon:logo,
+			    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistProfile:'+ streamLink, 'Directory', {
+						  title: title, icon:logo
 						});
+			    	
+			    	item.addOptAction("Add artist '" + title + "' to favorites", k);
+			    	
+				    item.onEvent(k, function(item) 
+		    		{
+		    	   		var entry = {
+		    	   			title: entries[item].getElementByTagName("img")[0].attributes.getNamedItem("alt").value,
+		    	   			icon: entries[item].getElementByTagName("img")[0].attributes.getNamedItem("src").value,
+		    	   			link: entries[item].getElementByTagName("a")[0].attributes.getNamedItem("href").value
+		    	   		};
+		    	   		
+		    	   		var obj = showtime.JSONDecode(store.favorites);
+		    	   		obj.artists.push(entry);
+		    	   		store.favorites = showtime.JSONEncode(obj);
+		    		});
 			    }
 		  }
 		  else if(SearchParam=="album")
 		  {  
 			  	var dom = html.parse(SearchQueryResponse.toString());
-				var artistlist =  dom.root.getElementByClassName('search-album')[0];
-				var entries =  artistlist.getElementByClassName('item');
-				
+				var entries =  dom.root.getElementByClassName('search-album')[0].getElementByClassName('item');
+				// workaround for the <em> tag problem
+				var artreg = /<div class="artist-name"><a href=".*">(.*)<\/a><\/div>/gi;
+				var artistnames = [];
 				
 				for(var k=0; k< entries.length; k++)
 			    {
-			    	// get albums picture + title + link
-			    	// album title needs to be taken from logo alternative as the search adds <em> tags which are hard to be taken care of
-					// TODO improve this workaround
-			    	//var title= entries[k].getElementByClassName("album-name")[0].getElementByTagName("a")[0].textContent;
+					noEntry=false;
 					var title = entries[k].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("alt").value;
-			    	
-			    	// get album link
 			    	var streamLink  = entries[k].getElementByTagName("a")[0].attributes.getNamedItem("href").value;
 			    	var logo = entries[k].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value;
 			    	
-			    	page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+title+":"+streamLink+":"+logo, 'video', {
+			    	artistnames[k] = artreg.exec(SearchQueryResponse.toString())[1].replace(/(<\/em>|<em>)/g,"");
+			    	
+			    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+streamLink+":"+logo, 'Directory', {
 						  title: title,
+						  description: "Artist: "+artistnames[k],
 						  icon: logo,
 						});
+
+			    	item.addOptAction("Add album '" + title + "' to favorites", k);
+
+				    item.onEvent(k, function(item) 
+		    		{
+		    	   		var entry = {
+		    	   			title: entries[item].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("alt").value,
+		    	   			icon: entries[item].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value,
+		    	   			link: entries[item].getElementByTagName("a")[0].attributes.getNamedItem("href").value,
+		    	   			artist: artistnames[item]
+		    	   		};
+		    	   		var obj = showtime.JSONDecode(store.favorites);
+		    	   		obj.albums.push(entry);
+		    	   		store.favorites = showtime.JSONEncode(obj);
+		    		});
 			    }
 		  }
+		  
+		  if(noEntry == true)
+			  page.appendPassiveItem('video', '', { title: 'The search gave no results' });
+		  
 		page.loading = false;
 	  }
   });
-
   
   // Used to either display all tracks of an artist or the tracks of a specific album
-  plugin.addURI(PLUGIN_PREFIX + 'ArtistPageTracks:(.*):(.*):(.*)', function(page, title, artistLink, backpic) {
+  plugin.addURI(PLUGIN_PREFIX + 'ArtistPageTracks:(.*):(.*)', function(page, artistLink, backpic) {
 	  	page.loading = false;
 	  	page.type = 'directory';
-	  	page.metadata.title = title;
+	  	
 	  	page.metadata.background = backpic;
   	
 	  	var finallink;
@@ -166,24 +215,63 @@
   		else
 		  	finallink = "https://www.song365.org/artist/tracks/"+artistLink.split('/')[2];
   		
+	  	var artistname;
+	  	
+	  	// 	albumname for full track listing not available!
+	  	var albumname = "<no name found>";
+	  	
 	  	var BrowseResponse = showtime.httpGet(finallink);
 	  	var dom = html.parse(BrowseResponse.toString());
+	  	
+	  	// get the title for the page
+	  	// either the contents of the album with name X or all tracks by artist X
+	  	var pageTitle="Placeholder";
+	  	
+	  	// if its an album we have a profile with all info
+	  	if(artistLink.indexOf("/album/") > -1)
+	  	{
+	  		// construct title with album name and artist name
+	  		albumname = dom.root.getElementByClassName('page')[0].getElementByTagName("h1")[0].textContent;
+	  		artistname = dom.root.getElementByClassName('profile')[0].getElementByTagName("a")[0].textContent;
+	  		pageTitle = albumname +  " by "+ artistname;
+	  	}
+	  	else
+	  	{
+	  		pageTitle = dom.root.getElementByClassName('sub-title')[0].textContent;
+	  		artistname = pageTitle.replace("Tracks by ","");
+	  	}
+	  	page.metadata.title = pageTitle;
+	  	var tracks = [];
 	  	var entries =  dom.root.getElementByClassName('artist-songs')[0].getElementByClassName("item");
 	    for(var k=0; k< entries.length; k++)
 	    {
 	    	var title = entries[k].getElementByClassName("song-name")[0].getElementByTagName("a")[0].textContent;
 	    	var TrackPlayLink  = entries[k].getElementByClassName("play")[0].attributes.getNamedItem("href").value;
-	
-	    	page.appendItem(PLUGIN_PREFIX + 'DecodeSongAndPlay:'+TrackPlayLink, 'video', { title: title });
+	    	
+	    	var description = "Artist: "+artistname+"\n"+"Album: "+albumname+"\n"+"Track: "+title;
+	    	
+	    	var item = page.appendItem(PLUGIN_PREFIX + 'DecodeSongAndPlay:'+TrackPlayLink, 'video', { title: title, description: description });
+	    	
+	    	
+	    	tracks[k]= {title: title, description: description, link: TrackPlayLink };
+	    	
+			item.addOptAction("Add track '" + title + "' to favorites", k);
+		    item.onEvent(k, function(item) 
+		    		{
+		    			var obj = showtime.JSONDecode(store.favorites);
+		    			obj.tracks.push(tracks[item]);
+		    			store.favorites = showtime.JSONEncode(obj);
+		    		});
+
 	    }
 		page.loading = false;
 	});
  
   // Show all albums for a given artist
-  plugin.addURI(PLUGIN_PREFIX + 'ArtistPageAlbums:(.*):(.*):(.*)', function(page, title,artistLink,profilepic) {
+  plugin.addURI(PLUGIN_PREFIX + 'ArtistPageAlbums:(.*):(.*)', function(page,artistLink,profilepic) {
 	  	page.loading = false;
 	  	page.type = 'directory';
-	  	page.metadata.title = title;
+	  
 	  	page.metadata.background = profilepic;
 	  	
 	  	// construct link to artists album page
@@ -191,6 +279,10 @@
 	  	var finallink = "https://www.song365.org/artist/albums/"+artilinkstrip;
 	  	var BrowseResponse = showtime.httpGet(finallink);
 	  	var dom = html.parse(BrowseResponse.toString());
+	  	
+	  	// get the Artist name from the page
+	  	var artistname = dom.root.getElementByClassName('sub-title')[0].textContent;
+	  	page.metadata.title = artistname;
 	  	
 	  	var albumlist =  dom.root.getElementByClassName('artist-album')[0];
 	  	var entries = albumlist.getElementByClassName("item");
@@ -202,28 +294,48 @@
 	    	var albumLink  = entries[k].getElementByTagName("a")[0].attributes.getNamedItem("href").value;
 	    	var logo = entries[k].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value;
 	    	
-	    	page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+title+":"+albumLink+":"+logo, 'video', {
+	    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+albumLink+":"+logo, 'Directory', {
 				  title: title,
 				  icon: logo,
 				});
+	    	
+	    	item.addOptAction("Add album '" + title + "' to favorites", k);
+
+		    item.onEvent(k, function(item) 
+    		{
+    	   		var entry = {
+    	   			title: entries[item].getElementByClassName("album-name")[0].getElementByTagName("a")[0].textContent,
+    	   			icon: entries[item].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value,
+    	   			link: entries[item].getElementByTagName("a")[0].attributes.getNamedItem("href").value,
+    	   			artist: artistname
+    	   		};
+    	   		var obj = showtime.JSONDecode(store.favorites);
+    	   		obj.albums.push(entry);
+    	   		store.favorites = showtime.JSONEncode(obj);
+    		});
+	    	
+	    	
 	    }
 		page.loading = false;
 	});
   
   // Handles the artist profile to access all albums / all tracks
-  plugin.addURI(PLUGIN_PREFIX + 'ArtistProfile:(.*):(.*)', function(page, title,artistLink) {
+  plugin.addURI(PLUGIN_PREFIX + 'ArtistProfile:(.*)', function(page, artistLink) {
 	  	page.loading = false;
 	  	page.type = 'directory';
-	  	page.metadata.title = title;
 	  	
 	  	// get background photo
 	  	var BrowseResponse = showtime.httpGet("https://www.song365.org"+artistLink);
 	  	var dom = html.parse(BrowseResponse.toString());
+	  	
+	  	// get title from page: the first h1 under the div with class "page"   
+	  	page.metadata.title = dom.root.getElementByClassName('page')[0].getElementByTagName("h1")[0].textContent;
+	  	
 	  	var link = dom.root.getElementByClassName('photo')[0].children[0].attributes.getNamedItem("src").value;
 	  	page.metadata.background = link;
 
-	  	page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+title+":"+artistLink+":"+link, 'video', { title: "All Tracks" });
-		page.appendItem(PLUGIN_PREFIX + 'ArtistPageAlbums:'+title+":"+artistLink+":"+link, 'video', { title: "All Albums" });
+	  	page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+artistLink+":"+link, 'Directory', { title: "All Tracks" });
+		page.appendItem(PLUGIN_PREFIX + 'ArtistPageAlbums:'+artistLink+":"+link, 'Directory', { title: "All Albums" });
 
 		page.loading = false;
 	});
@@ -231,13 +343,9 @@
   // Retrieves the direct link to the mp3 file and plays it. 
   plugin.addURI(PLUGIN_PREFIX + 'DecodeSongAndPlay:(.*)', function(page, streamLink) {
 	  	page.loading = false;
-
 	  	var BrowseResponse = showtime.httpGet("https://www.song365.org"+streamLink);
-	  	var result = BrowseResponse.toString().match(/var url = '(.*)';/g);
-	  	// TODO: somehow the regex does not give the match group so we need to do a substring to get link
-	  	var mp3 = result[0].substring(11,result[0].length-2);
-	  	
-	  	page.source = mp3;
+	  	  	
+	  	page.source = /var url = '(.*)';/g.exec(BrowseResponse.toString())[1];
 		page.type = 'video';
 		page.loading = false;
 	});
@@ -249,11 +357,11 @@
 	  	page.type = "directory";
 	    page.metadata.title = "Browse artists starting with:";
 	    	
-	    page.appendItem(PLUGIN_PREFIX + 'BrowsebyArtistStartingWith:'+ 'digital', 'video', { title: '#' });
+	    page.appendItem(PLUGIN_PREFIX + 'BrowsebyArtistStartingWith:'+ 'digital', 'Directory', { title: '#' });
 	    for(var k=0; k< 26; k++)
 	    {
 	    	var letter = String.fromCharCode(97+k);
-	    	page.appendItem(PLUGIN_PREFIX + 'BrowsebyArtistStartingWith:'+ letter, 'video', { title: letter.toUpperCase()});
+	    	page.appendItem(PLUGIN_PREFIX + 'BrowsebyArtistStartingWith:'+ letter, 'Directory', { title: letter.toUpperCase()});
 	    }
   });
 
@@ -268,7 +376,7 @@
     var BrowseResponse = showtime.httpGet("https://www.song365.org/artist-"+letter+".html");
   	var dom = html.parse(BrowseResponse.toString());
   	var entries =  dom.root.getElementByClassName('list')[0].getElementByTagName("a");
-  	
+  	var titles = [];
     for(var k=0; k< entries.length; k++)
     {
     	// the first hot items are in "em" tags. to get their title we need to identify them
@@ -280,8 +388,93 @@
     	
     	// get artist site link
     	var ArtistProfileLink  = entries[k].attributes.getNamedItem("href").value;
-    	page.appendItem(PLUGIN_PREFIX + 'ArtistProfile:'+title+':'+ ArtistProfileLink, 'video', { title: title });
+    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistProfile:'+ ArtistProfileLink, 'Directory', { title: title });
+    	
+    	titles[k] = title;
+    	item.addOptAction("Add artist '" + title + "' to favorites", k);
+    	
+	    item.onEvent(k, function(item) 
+		{
+	    	// TODO: There are no icon links here 
+	    	// although it would be a long solution we 
+	    	// could take it from artist profile by a separate post 
+	    	// -> as long as we have the directory entries we dont need icons
+	   		var entry = {
+	   			title: titles[item],
+	   			icon: "",
+	   			link:  entries[item].attributes.getNamedItem("href").value
+	   		};
+	   		
+	   		var obj = showtime.JSONDecode(store.favorites);
+	   		obj.artists.push(entry);
+	   		store.favorites = showtime.JSONEncode(obj);
+		});
+    	
     }
+  });
+  
+  
+  // Displays the favorites menu to choose which favorites to view
+  plugin.addURI(PLUGIN_PREFIX + 'Favorites', function(page) {
+	  	page.type = "directory";
+	    page.metadata.title = "Which favorites to browse:";
+	    	
+	    page.appendItem(PLUGIN_PREFIX + 'DisplayFavorites:'+ 'artists', 'Directory', { title: 'Favorite artists' });
+	    page.appendItem(PLUGIN_PREFIX + 'DisplayFavorites:'+ 'albums', 'Directory', { title: 'Favorite albums'});
+	    page.appendItem(PLUGIN_PREFIX + 'DisplayFavorites:'+ 'tracks', 'Directory', { title: 'Favorite tracks'});
+  });
+  
+  // Displays the favorite artists / albums / tracks
+  plugin.addURI(PLUGIN_PREFIX + 'DisplayFavorites:(.*)', function(page, category) {
+	  	page.type = "directory";
+	    page.metadata.title = "Favorite "+category;
+	    	
+	    var list = showtime.JSONDecode(store.favorites)[category];
+        if (!list || !list.toString()) {
+           page.error("Favorites list is empty");
+           return;
+        }
+
+        
+        for (var i in list) {
+		    		   
+		    		    
+		    var item;
+		    if(category == "tracks")
+		    {
+		    	item = page.appendItem(PLUGIN_PREFIX + 'DecodeSongAndPlay:'+list[i].link, 'video', {
+					  title: list[i].title,
+					  description: list[i].description,
+					});
+		    }
+		    else if(category == "albums")
+		    {
+		    	item = page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+list[i].link+":"+list[i].icon, 'Directory', {
+					  title: list[i].title,
+					  icon: list[i].icon,
+					  description: "Artist: "+ list[i].artist
+					});
+		    }
+		    else if(category == "artists")
+		    {
+		    	item = page.appendItem(PLUGIN_PREFIX + 'ArtistProfile:'+ list[i].link, 'Directory', {
+					  title: list[i].title,
+					  icon: list[i].icon,
+					});
+		    }
+		    
+		    item.addOptAction("Remove '" + list[i].title + "' from My Favorites", i);
+		    
+		    item.onEvent(i, function(item) 
+		    		{
+		    			var obj = showtime.JSONDecode(store.favorites);
+		    	   		obj[category].splice(item, 1);
+		    	   		store.favorites = showtime.JSONEncode(obj);
+		    			page.flush();
+		    			page.redirect(PLUGIN_PREFIX + 'DisplayFavorites:'+category);
+		    		});
+            
+	}
   });
   
   // Gives a Search Menu with 3 different Search-Entries: Artist, Album and Track Search
@@ -302,6 +495,7 @@
     page.type = "directory";
     page.metadata.title = "song365.org Main Menu";
     page.appendItem(PLUGIN_PREFIX + 'BrowsebyArtist', 'directory',{title: "Browse by Artist" });
+    page.appendItem(PLUGIN_PREFIX + 'Favorites','directory',{title: "Favorites" });
     page.appendItem(PLUGIN_PREFIX + 'SearchMenu','item',{title: "Search..." });
 	page.loading = false;
   });
