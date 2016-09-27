@@ -1,7 +1,7 @@
 /**
  * Movian plugin to listen to song365.org streams 
  *
- * Copyright (C) 2015 BuXXe
+ * Copyright (C) 2016 BuXXe
  *
  *     This file is part of song365.org Movian plugin.
  *
@@ -206,7 +206,7 @@
 	  	page.loading = false;
 	  	page.type = 'directory';
 	  	
-	  	page.metadata.background = backpic;
+	  	page.metadata.background = decodeURIComponent(backpic);
   	
 	  	var finallink;
 	  	// do we have an album?
@@ -272,7 +272,7 @@
 	  	page.loading = false;
 	  	page.type = 'directory';
 	  
-	  	page.metadata.background = profilepic;
+	  	page.metadata.background = decodeURIComponent(profilepic);
 	  	
 	  	// construct link to artists album page
 	  	var artilinkstrip = artistLink.split('/')[2];
@@ -294,7 +294,7 @@
 	    	var albumLink  = entries[k].getElementByTagName("a")[0].attributes.getNamedItem("href").value;
 	    	var logo = entries[k].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value;
 	    	
-	    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+albumLink+":"+logo, 'Directory', {
+	    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+albumLink+":"+encodeURIComponent(logo), 'Directory', {
 				  title: title,
 				  icon: logo,
 				});
@@ -334,8 +334,8 @@
 	  	var link = dom.root.getElementByClassName('photo')[0].children[0].attributes.getNamedItem("src").value;
 	  	page.metadata.background = link;
 
-	  	page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+artistLink+":"+link, 'Directory', { title: "All Tracks" });
-		page.appendItem(PLUGIN_PREFIX + 'ArtistPageAlbums:'+artistLink+":"+link, 'Directory', { title: "All Albums" });
+	  	page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+artistLink+":"+encodeURIComponent(link), 'Directory', { title: "All Tracks" });
+		page.appendItem(PLUGIN_PREFIX + 'ArtistPageAlbums:'+artistLink+":"+encodeURIComponent(link), 'Directory', { title: "All Albums" });
 
 		page.loading = false;
 	});
