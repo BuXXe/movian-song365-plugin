@@ -1,7 +1,7 @@
 /**
  * Movian plugin to listen to song365.org streams 
  *
- * Copyright (C) 2016 BuXXe
+ * Copyright (C) 2016-2017 BuXXe
  *
  *     This file is part of song365.org Movian plugin.
  *
@@ -65,8 +65,12 @@
 		  page.redirect(PLUGIN_PREFIX+"SearchMenu");
 	  else
 	  {
-		  var SearchQueryResponse = showtime.httpGet("https://www.song365.org/search/"+SearchParam+"?keyword="+res.input);
-		  
+		  var SearchQueryResponse = showtime.httpReq("https://www.yourmusics.net/search/"+SearchParam+"?keyword="+res.input,{
+				  compression: true,
+				  noFollow:true,
+				  headers:{'User-Agent':'Mozilla/5.0 (Windows NT x.y; Win64; x64; rv:10.0) Gecko/20100101 Firefox/10.0'}
+				});
+
 		  // Parse Search Results: Track -> Direct Play, Artist -> Artist Profile Page, Album -> Album Tracks
 		  
 		  // Problem: The search results are marked in <em> tags. The parsed dom structure makes it problematic
@@ -211,16 +215,20 @@
 	  	var finallink;
 	  	// do we have an album?
 	  	if(artistLink.indexOf("/album/") > -1)
-	  		finallink = "https://www.song365.org"+artistLink
+	  		finallink = "https://www.yourmusics.net"+artistLink
   		else
-		  	finallink = "https://www.song365.org/artist/tracks/"+artistLink.split('/')[2];
+		  	finallink = "https://www.yourmusics.net/artist/tracks/"+artistLink.split('/')[2];
   		
 	  	var artistname;
 	  	
 	  	// 	albumname for full track listing not available!
 	  	var albumname = "<no name found>";
 	  	
-	  	var BrowseResponse = showtime.httpGet(finallink);
+	  	var BrowseResponse = showtime.httpReq(finallink,{
+			  compression: true,
+			  noFollow:true,
+			  headers:{'User-Agent':'Mozilla/5.0 (Windows NT x.y; Win64; x64; rv:10.0) Gecko/20100101 Firefox/10.0'}
+			});
 	  	var dom = html.parse(BrowseResponse.toString());
 	  	
 	  	// get the title for the page
@@ -276,8 +284,13 @@
 	  	
 	  	// construct link to artists album page
 	  	var artilinkstrip = artistLink.split('/')[2];
-	  	var finallink = "https://www.song365.org/artist/albums/"+artilinkstrip;
-	  	var BrowseResponse = showtime.httpGet(finallink);
+	  	var finallink = "https://www.yourmusics.net/artist/albums/"+artilinkstrip;
+	  	
+	  	var BrowseResponse = showtime.httpReq(finallink,{
+			  compression: true,
+			  noFollow:true,
+			  headers:{'User-Agent':'Mozilla/5.0 (Windows NT x.y; Win64; x64; rv:10.0) Gecko/20100101 Firefox/10.0'}
+			});
 	  	var dom = html.parse(BrowseResponse.toString());
 	  	
 	  	// get the Artist name from the page
@@ -325,7 +338,11 @@
 	  	page.type = 'directory';
 	  	
 	  	// get background photo
-	  	var BrowseResponse = showtime.httpGet("https://www.song365.org"+artistLink);
+	  	var BrowseResponse = showtime.httpReq("https://www.yourmusics.net"+artistLink,{
+			  compression: true,
+			  noFollow:true,
+			  headers:{'User-Agent':'Mozilla/5.0 (Windows NT x.y; Win64; x64; rv:10.0) Gecko/20100101 Firefox/10.0'}
+			});
 	  	var dom = html.parse(BrowseResponse.toString());
 	  	
 	  	// get title from page: the first h1 under the div with class "page"   
@@ -343,8 +360,12 @@
   // Retrieves the direct link to the mp3 file and plays it. 
   plugin.addURI(PLUGIN_PREFIX + 'DecodeSongAndPlay:(.*)', function(page, streamLink) {
 	  	page.loading = false;
-	  	var BrowseResponse = showtime.httpGet("https://www.song365.org"+streamLink);
-	  	  	
+	  	
+	    var BrowseResponse = showtime.httpReq("https://www.yourmusics.net"+streamLink,{
+			  compression: true,
+			  noFollow:true,
+			  headers:{'User-Agent':'Mozilla/5.0 (Windows NT x.y; Win64; x64; rv:10.0) Gecko/20100101 Firefox/10.0'}
+			});	
 	  	page.source = /var url = '(.*)';/g.exec(BrowseResponse.toString())[1];
 		page.type = 'video';
 		page.loading = false;
@@ -373,8 +394,14 @@
     page.metadata.title = "Browse artists starting with: "+letter.toUpperCase();
     
     // Get List of artists
-    var BrowseResponse = showtime.httpGet("https://www.song365.org/artist-"+letter+".html");
+    var BrowseResponse = showtime.httpReq("https://www.yourmusics.net/artist-"+letter+".html",{
+		  compression: true,
+		  noFollow:true,
+		  headers:{'User-Agent':'Mozilla/5.0 (Windows NT x.y; Win64; x64; rv:10.0) Gecko/20100101 Firefox/10.0'}
+		});
   	var dom = html.parse(BrowseResponse.toString());
+
+  	
   	var entries =  dom.root.getElementByClassName('list')[0].getElementByTagName("a");
   	var titles = [];
     for(var k=0; k< entries.length; k++)
