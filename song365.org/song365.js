@@ -102,28 +102,34 @@
 				var tracks=[];
 				var songnamesandlinks;
 				while (songnamesandlinks = songreg.exec(SearchQueryResponse.toString())) {
-					
-					noEntry=false;
-					var artistname = artreg.exec(SearchQueryResponse.toString())[1].replace(/(<\/em>|<em>)/g,"");
-					var albumname = albreg.exec(SearchQueryResponse.toString())[1].replace(/(<\/em>|<em>)/g,"");
-
-					var songname = songnamesandlinks[2].replace(/(<\/em>|<em>)/g,"");		
-					var description = "Artist: "+artistname+"\n"+"Album: "+albumname+"\n"+"Track: "+songname;
-					
-					var item = page.appendItem(PLUGIN_PREFIX + 'DecodeSongAndPlay:'+songnamesandlinks[1], 'video', {
-							  title: songname,
-							  description: description,
-							});
-					
-					tracks[pos]= {title: songname, description: description, link: songnamesandlinks[1] }
-					item.addOptAction("Add track '" + songname + "' to favorites", pos);
-				    item.onEvent(pos, function(item) 
-				    		{
-				    			var obj = showtime.JSONDecode(store.favorites);
-				    			obj.tracks.push(tracks[item]);
-				    			store.favorites = showtime.JSONEncode(obj);
-				    		});
-				    pos++;
+					try{
+						noEntry=false;
+						var artistname = artreg.exec(SearchQueryResponse.toString())[1].replace(/(<\/em>|<em>)/g,"");
+						var albumname = albreg.exec(SearchQueryResponse.toString())[1].replace(/(<\/em>|<em>)/g,"");
+	
+						var songname = songnamesandlinks[2].replace(/(<\/em>|<em>)/g,"");		
+						var description = "Artist: "+artistname+"\n"+"Album: "+albumname+"\n"+"Track: "+songname;
+						
+						var item = page.appendItem(PLUGIN_PREFIX + 'DecodeSongAndPlay:'+songnamesandlinks[1], 'video', {
+								  title: songname,
+								  description: description,
+								});
+						
+						tracks[pos]= {title: songname, description: description, link: songnamesandlinks[1] }
+						item.addOptAction("Add track '" + songname + "' to favorites", pos);
+					    item.onEvent(pos, function(item) 
+					    		{
+					    			var obj = showtime.JSONDecode(store.favorites);
+					    			obj.tracks.push(tracks[item]);
+					    			store.favorites = showtime.JSONEncode(obj);
+					    		});
+					    pos++;
+			    	}catch(e)
+			    	{
+			    		showtime.trace("seems like there was a broken entry");
+			    		showtime.trace(e.message);
+			    		// seems like there was a broken entry
+			    	}
 				}
 		  }
 		  else if(SearchParam=="artist")
@@ -133,29 +139,37 @@
 			  	
 			    for(var k=0; k< entries.length; k++)
 			    {
-			    	noEntry=false;
-			    	var logo =  entries[k].getElementByTagName("img")[0].attributes.getNamedItem("src").value;
-			    	var title =  entries[k].getElementByTagName("img")[0].attributes.getNamedItem("alt").value;
-			    	var streamLink  = entries[k].getElementByTagName("a")[0].attributes.getNamedItem("href").value;
-		    	
-			    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistProfile:'+ streamLink, 'Directory', {
-						  title: title, icon:logo
-						});
+			    	try{
+			    		noEntry=false;
 			    	
-			    	item.addOptAction("Add artist '" + title + "' to favorites", k);
+				    	var logo =  entries[k].getElementByTagName("img")[0].attributes.getNamedItem("src").value;
+				    	var title =  entries[k].getElementByTagName("img")[0].attributes.getNamedItem("alt").value;
+				    	var streamLink  = entries[k].getElementByTagName("a")[0].attributes.getNamedItem("href").value;
 			    	
-				    item.onEvent(k, function(item) 
-		    		{
-		    	   		var entry = {
-		    	   			title: entries[item].getElementByTagName("img")[0].attributes.getNamedItem("alt").value,
-		    	   			icon: entries[item].getElementByTagName("img")[0].attributes.getNamedItem("src").value,
-		    	   			link: entries[item].getElementByTagName("a")[0].attributes.getNamedItem("href").value
-		    	   		};
-		    	   		
-		    	   		var obj = showtime.JSONDecode(store.favorites);
-		    	   		obj.artists.push(entry);
-		    	   		store.favorites = showtime.JSONEncode(obj);
-		    		});
+				    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistProfile:'+ streamLink, 'Directory', {
+							  title: title, icon:logo
+							});
+				    	
+				    	item.addOptAction("Add artist '" + title + "' to favorites", k);
+				    	
+					    item.onEvent(k, function(item) 
+			    		{
+			    	   		var entry = {
+			    	   			title: entries[item].getElementByTagName("img")[0].attributes.getNamedItem("alt").value,
+			    	   			icon: entries[item].getElementByTagName("img")[0].attributes.getNamedItem("src").value,
+			    	   			link: entries[item].getElementByTagName("a")[0].attributes.getNamedItem("href").value
+			    	   		};
+			    	   		
+			    	   		var obj = showtime.JSONDecode(store.favorites);
+			    	   		obj.artists.push(entry);
+			    	   		store.favorites = showtime.JSONEncode(obj);
+			    		});
+			    	}catch(e)
+			    	{
+			    		showtime.trace("seems like there was a broken entry");
+			    		showtime.trace(e.message);
+			    		// seems like there was a broken entry
+			    	}
 			    }
 		  }
 		  else if(SearchParam=="album")
@@ -168,33 +182,42 @@
 				
 				for(var k=0; k< entries.length; k++)
 			    {
-					noEntry=false;
-					var title = entries[k].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("alt").value;
-			    	var streamLink  = entries[k].getElementByTagName("a")[0].attributes.getNamedItem("href").value;
-			    	var logo = entries[k].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value;
-			    	
-			    	artistnames[k] = artreg.exec(SearchQueryResponse.toString())[1].replace(/(<\/em>|<em>)/g,"");
-			    	
-			    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+streamLink+":"+logo, 'Directory', {
-						  title: title,
-						  description: "Artist: "+artistnames[k],
-						  icon: logo,
-						});
-
-			    	item.addOptAction("Add album '" + title + "' to favorites", k);
-
-				    item.onEvent(k, function(item) 
-		    		{
-		    	   		var entry = {
-		    	   			title: entries[item].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("alt").value,
-		    	   			icon: entries[item].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value,
-		    	   			link: entries[item].getElementByTagName("a")[0].attributes.getNamedItem("href").value,
-		    	   			artist: artistnames[item]
-		    	   		};
-		    	   		var obj = showtime.JSONDecode(store.favorites);
-		    	   		obj.albums.push(entry);
-		    	   		store.favorites = showtime.JSONEncode(obj);
-		    		});
+					try{
+						noEntry=false;
+					
+						var title = entries[k].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("alt").value;
+				    	var streamLink  = entries[k].getElementByTagName("a")[0].attributes.getNamedItem("href").value;
+				    	var logo = entries[k].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value;
+				    	
+				    	artistnames[k] = artreg.exec(SearchQueryResponse.toString())[1].replace(/(<\/em>|<em>)/g,"");
+				    	
+				    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+streamLink+":"+logo, 'Directory', {
+							  title: title,
+							  description: "Artist: "+artistnames[k],
+							  icon: logo,
+							});
+	
+				    	item.addOptAction("Add album '" + title + "' to favorites", k);
+	
+					    item.onEvent(k, function(item) 
+			    		{
+			    	   		var entry = {
+			    	   			title: entries[item].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("alt").value,
+			    	   			icon: entries[item].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value,
+			    	   			link: entries[item].getElementByTagName("a")[0].attributes.getNamedItem("href").value,
+			    	   			artist: artistnames[item]
+			    	   		};
+			    	   		var obj = showtime.JSONDecode(store.favorites);
+			    	   		obj.albums.push(entry);
+			    	   		store.favorites = showtime.JSONEncode(obj);
+			    		});
+			    	}catch(e)
+			    	{
+			    		showtime.trace("seems like there was a broken entry");
+			    		showtime.trace(e.message);
+			    		// seems like there was a broken entry
+			    	}
+					
 			    }
 		  }
 		  
@@ -253,24 +276,33 @@
 	  	var entries =  dom.root.getElementByClassName('artist-songs')[0].getElementByClassName("item");
 	    for(var k=0; k< entries.length; k++)
 	    {
-	    	var title = entries[k].getElementByClassName("song-name")[0].getElementByTagName("a")[0].textContent;
-	    	var TrackPlayLink  = entries[k].getElementByClassName("play")[0].attributes.getNamedItem("href").value;
+	    	try
+	    	{
+	    		var title = entries[k].getElementByClassName("song-name")[0].getElementByTagName("a")[0].textContent;
 	    	
-	    	var description = "Artist: "+artistname+"\n"+"Album: "+albumname+"\n"+"Track: "+title;
-	    	
-	    	var item = page.appendItem(PLUGIN_PREFIX + 'DecodeSongAndPlay:'+TrackPlayLink, 'video', { title: title, description: description });
-	    	
-	    	
-	    	tracks[k]= {title: title, description: description, link: TrackPlayLink };
-	    	
-			item.addOptAction("Add track '" + title + "' to favorites", k);
-		    item.onEvent(k, function(item) 
-		    		{
-		    			var obj = showtime.JSONDecode(store.favorites);
-		    			obj.tracks.push(tracks[item]);
-		    			store.favorites = showtime.JSONEncode(obj);
-		    		});
-
+		    	var TrackPlayLink  = entries[k].getElementByClassName("play")[0].attributes.getNamedItem("href").value;
+		    	
+		    	var description = "Artist: "+artistname+"\n"+"Album: "+albumname+"\n"+"Track: "+title;
+		    	
+		    	var item = page.appendItem(PLUGIN_PREFIX + 'DecodeSongAndPlay:'+TrackPlayLink, 'video', { title: title, description: description });
+		    	
+		    	
+		    	tracks[k]= {title: title, description: description, link: TrackPlayLink };
+		    	
+				item.addOptAction("Add track '" + title + "' to favorites", k);
+			    item.onEvent(k, function(item) 
+			    		{
+			    			var obj = showtime.JSONDecode(store.favorites);
+			    			obj.tracks.push(tracks[item]);
+			    			store.favorites = showtime.JSONEncode(obj);
+			    		});
+	    	}
+	    	catch(e)
+	    	{
+	    		showtime.trace("seems like there was a broken entry");
+	    		showtime.trace(e.message);
+	    		// seems like there was a broken entry 
+	    	}
 	    }
 		page.loading = false;
 	});
@@ -302,31 +334,39 @@
 	  	
 	    for(var k=0; k< entries.length; k++)
 	    {
-	    	// get albums picture + title + link
-	    	var title= entries[k].getElementByClassName("album-name")[0].getElementByTagName("a")[0].textContent;
-	    	var albumLink  = entries[k].getElementByTagName("a")[0].attributes.getNamedItem("href").value;
-	    	var logo = entries[k].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value;
-	    	
-	    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+albumLink+":"+encodeURIComponent(logo), 'Directory', {
-				  title: title,
-				  icon: logo,
-				});
-	    	
-	    	item.addOptAction("Add album '" + title + "' to favorites", k);
-
-		    item.onEvent(k, function(item) 
-    		{
-    	   		var entry = {
-    	   			title: entries[item].getElementByClassName("album-name")[0].getElementByTagName("a")[0].textContent,
-    	   			icon: entries[item].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value,
-    	   			link: entries[item].getElementByTagName("a")[0].attributes.getNamedItem("href").value,
-    	   			artist: artistname
-    	   		};
-    	   		var obj = showtime.JSONDecode(store.favorites);
-    	   		obj.albums.push(entry);
-    	   		store.favorites = showtime.JSONEncode(obj);
-    		});
-	    	
+	    	try
+	    	{
+		    	// get albums picture + title + link
+		    	var title= entries[k].getElementByClassName("album-name")[0].getElementByTagName("a")[0].textContent;
+		    	var albumLink  = entries[k].getElementByTagName("a")[0].attributes.getNamedItem("href").value;
+		    	var logo = entries[k].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value;
+		    	
+		    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistPageTracks:'+albumLink+":"+encodeURIComponent(logo), 'Directory', {
+					  title: title,
+					  icon: logo,
+					});
+		    	
+		    	item.addOptAction("Add album '" + title + "' to favorites", k);
+	
+			    item.onEvent(k, function(item) 
+	    		{
+	    	   		var entry = {
+	    	   			title: entries[item].getElementByClassName("album-name")[0].getElementByTagName("a")[0].textContent,
+	    	   			icon: entries[item].getElementByTagName("a")[0].getElementByTagName("img")[0].attributes.getNamedItem("src").value,
+	    	   			link: entries[item].getElementByTagName("a")[0].attributes.getNamedItem("href").value,
+	    	   			artist: artistname
+	    	   		};
+	    	   		var obj = showtime.JSONDecode(store.favorites);
+	    	   		obj.albums.push(entry);
+	    	   		store.favorites = showtime.JSONEncode(obj);
+	    		});
+	    	}
+	    	catch(e)
+	    	{
+	    		showtime.trace("seems like there was a broken entry");
+	    		showtime.trace(e.message);
+	    		// seems like there was a broken entry
+	    	}
 	    	
 	    }
 		page.loading = false;
@@ -406,37 +446,45 @@
   	var titles = [];
     for(var k=0; k< entries.length; k++)
     {
-    	// the first hot items are in "em" tags. to get their title we need to identify them
-    	var title = "<No Title Found>";
-    	if( entries[k].textContent == undefined)
-    		title = entries[k].children[1].textContent;
-    	else
-    		title = entries[k].textContent;
-    	
-    	// get artist site link
-    	var ArtistProfileLink  = entries[k].attributes.getNamedItem("href").value;
-    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistProfile:'+ ArtistProfileLink, 'Directory', { title: title });
-    	
-    	titles[k] = title;
-    	item.addOptAction("Add artist '" + title + "' to favorites", k);
-    	
-	    item.onEvent(k, function(item) 
-		{
-	    	// TODO: There are no icon links here 
-	    	// although it would be a long solution we 
-	    	// could take it from artist profile by a separate post 
-	    	// -> as long as we have the directory entries we dont need icons
-	   		var entry = {
-	   			title: titles[item],
-	   			icon: "",
-	   			link:  entries[item].attributes.getNamedItem("href").value
-	   		};
-	   		
-	   		var obj = showtime.JSONDecode(store.favorites);
-	   		obj.artists.push(entry);
-	   		store.favorites = showtime.JSONEncode(obj);
-		});
-    	
+    	try{
+    		
+	    	// the first hot items are in "em" tags. to get their title we need to identify them
+	    	var title = "<No Title Found>";
+	    	if( entries[k].textContent == undefined)
+	    		title = entries[k].children[1].textContent;
+	    	else
+	    		title = entries[k].textContent;
+	    	
+	    	// get artist site link
+	    	var ArtistProfileLink  = entries[k].attributes.getNamedItem("href").value;
+	    	var item = page.appendItem(PLUGIN_PREFIX + 'ArtistProfile:'+ ArtistProfileLink, 'Directory', { title: title });
+	    	
+	    	titles[k] = title;
+	    	item.addOptAction("Add artist '" + title + "' to favorites", k);
+	    	
+		    item.onEvent(k, function(item) 
+			{
+		    	// TODO: There are no icon links here 
+		    	// although it would be a long solution we 
+		    	// could take it from artist profile by a separate post 
+		    	// -> as long as we have the directory entries we dont need icons
+		   		var entry = {
+		   			title: titles[item],
+		   			icon: "",
+		   			link:  entries[item].attributes.getNamedItem("href").value
+		   		};
+		   		
+		   		var obj = showtime.JSONDecode(store.favorites);
+		   		obj.artists.push(entry);
+		   		store.favorites = showtime.JSONEncode(obj);
+			});
+    	}catch(e)
+    	{
+    		showtime.trace("seems like there was a broken entry");
+    		showtime.trace(e.message);
+    		// seems like there was a broken entry
+    		
+    	}
     }
   });
   
